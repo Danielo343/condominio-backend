@@ -4,17 +4,19 @@ namespace App\Models;
 
 use MongoDB\Laravel\Eloquent\Model;
 
-class Residente extends Model
+class ConfiguracionCondominio extends Model
 {
     protected $connection = 'mongodb';
-    protected $collection = 'residentes';
+    protected $collection = 'configuracion_condominio';
 
     protected $fillable = [
-        'nombre',
-        'unidad',
-        'email',
+        'clave_config',
+        'nombre_condominio',
+        'direccion',
+        'administrador',
         'telefono',
-        'estado'
+        'cuota_mantenimiento',
+        'moneda'
     ];
 
     protected $casts = [

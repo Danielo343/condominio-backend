@@ -4,17 +4,18 @@ namespace App\Models;
 
 use MongoDB\Laravel\Eloquent\Model;
 
-class Residente extends Model
+class PersonalAccessToken extends Model
 {
     protected $connection = 'mongodb';
-    protected $collection = 'residentes';
+    protected $collection = 'personal_access_tokens';
 
     protected $fillable = [
-        'nombre',
-        'unidad',
-        'email',
-        'telefono',
-        'estado'
+        'token_id',
+        'tokenable_type',
+        'tokenable_id',
+        'name',
+        'token',
+        'abilities'
     ];
 
     protected $casts = [

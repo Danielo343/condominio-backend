@@ -4,20 +4,20 @@ namespace App\Models;
 
 use MongoDB\Laravel\Eloquent\Model;
 
-class Residente extends Model
+class Notificacion extends Model
 {
     protected $connection = 'mongodb';
-    protected $collection = 'residentes';
+    protected $collection = 'notificaciones';
 
     protected $fillable = [
-        'nombre',
-        'unidad',
-        'email',
-        'telefono',
-        'estado'
+        'titulo',
+        'mensaje',
+        'tipo',
+        'leido_por'
     ];
 
     protected $casts = [
+        'leido_por'  => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
