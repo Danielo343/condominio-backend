@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MensajeChat;
+use App\Models\User;
 use App\Events\MensajeEnviado;
 use Illuminate\Http\Request;
 
@@ -11,11 +12,26 @@ class ControladorChat extends Controller
     public function obtenerMensajes()
     {
         try {
-            $mensajes = MensajeChat::get();
+            $mensajes = MensajeChat::orderBy('created_at', 'asc')->get();
+
+            // Obtenemos los IDs de usuarios activos en MongoDB
+            $usuariosActivosIds = User::all()->pluck('_id')->map(fn($id) => (string)$id)->toArray();
+
+            $data = $mensajes->map(function ($msg) use ($usuariosActivosIds) {
+                $esUsuarioActivo = in_array((string)$msg->user_id, $usuariosActivosIds);
+                return [
+                    '_id'            => (string)$msg->_id,
+                    'user_id'        => (string)$msg->user_id,
+                    'nombre_usuario' => $msg->nombre_usuario,
+                    'mensaje'        => $msg->mensaje,
+                    'hora'           => $msg->hora,
+                    'antiguo'        => !$esUsuarioActivo
+                ];
+            });
 
             return response()->json([
                 'status' => 'success',
-                'data' => $mensajes
+                'data' => $data
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -41,16 +57,22 @@ class ControladorChat extends Controller
                 'hora'           => now()->format('H:i')
             ]);
 
-            // Intentar transmitir por WebSocket si Reverb está activo
             try {
                 broadcast(new MensajeEnviado($mensaje))->toOthers();
             } catch (\Exception $e) {
-                // Si Reverb no está iniciado, el mensaje igual se guarda en MongoDB
+                // Silencioso si Reverb está en segundo plano
             }
 
             return response()->json([
                 'status' => 'success',
-                'data' => $mensaje
+                'data' => [
+                    '_id'            => (string)$mensaje->_id,
+                    'user_id'        => (string)$mensaje->user_id,
+                    'nombre_usuario' => $mensaje->nombre_usuario,
+                    'mensaje'        => $mensaje->mensaje,
+                    'hora'           => $mensaje->hora,
+                    'antiguo'        => false
+                ]
             ], 201);
         } catch (\Exception $e) {
             return response()->json([

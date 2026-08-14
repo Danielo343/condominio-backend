@@ -16,11 +16,13 @@ class ControladorDashboard extends Controller
         try {
             $totalResidentes = Residente::count();
             $unidadesOcupadas = Residente::whereNotNull('unidad')->distinct('unidad')->count();
-            $capacidadTotal = 150;
-            $porcentajeOcupacion = $capacidadTotal > 0 ? round(($unidadesOcupadas / $capacidadTotal) * 100, 1) : 0;
 
+            // Obtenemos la configuración dinámica
             $config = ConfiguracionCondominio::where('clave_config', 'general_config')->first();
+            $capacidadTotal = $config->capacidad_total ?? 50;
             $cuota = $config->cuota_mantenimiento ?? 1500;
+
+            $porcentajeOcupacion = $capacidadTotal > 0 ? round(($unidadesOcupadas / $capacidadTotal) * 100, 1) : 0;
             $ingresosMes = $unidadesOcupadas * $cuota;
 
             $eventos = Evento::orderBy('fecha', 'asc')->take(5)->get();
@@ -58,7 +60,6 @@ class ControladorDashboard extends Controller
 
             $evento = Evento::create($validated);
 
-            // 1. Guardar Notificación persistente en MongoDB Atlas
             $notificacion = Notificacion::create([
                 'titulo'    => 'Nuevo Evento: ' . $evento->titulo,
                 'mensaje'   => $evento->fecha . ' a las ' . $evento->hora . ' en ' . $evento->lugar,
@@ -66,16 +67,13 @@ class ControladorDashboard extends Controller
                 'leido_por' => []
             ]);
 
-            // 2. Transmitir por WebSocket en vivo a todos los usuarios conectados
             try {
                 broadcast(new NotificacionCreada($notificacion))->toOthers();
-            } catch (\Exception $e) {
-                // Silencioso si Reverb está en segundo plano
-            }
+            } catch (\Exception $e) {}
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Evento programado y notificación enviada a los residentes.',
+                'message' => 'Evento programado correctamente.',
                 'data' => $evento
             ], 201);
         } catch (\Exception $e) {
@@ -93,7 +91,6 @@ class ControladorDashboard extends Controller
             if (!$evento) {
                 return response()->json(['status' => 'error', 'message' => 'Evento no encontrado.'], 404);
             }
-
             $evento->delete();
 
             return response()->json([

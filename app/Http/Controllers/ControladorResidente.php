@@ -6,6 +6,7 @@ use App\Models\Residente;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class ControladorResidente extends Controller
 {
@@ -41,36 +42,60 @@ class ControladorResidente extends Controller
     {
         try {
             $validated = $request->validate([
-                'nombre'   => 'required|string|max:255',
-                'unidad'   => 'required|string|max:100',
+                'nombre' => [
+                    'required',
+                    'string',
+                    'min:5',
+                    'max:100',
+                    'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                    function ($attribute, $value, $fail) {
+                        $palabras = array_filter(explode(' ', trim($value)));
+                        if (count($palabras) < 2) {
+                            $fail('Debes ingresar al menos un nombre y un apellido.');
+                        }
+                    },
+                ],
+                'unidad'   => 'required|string|min:4|max:50',
                 'email'    => 'required|email|max:255',
-                'telefono' => 'required|string|max:50',
+                'telefono' => 'required|string|regex:/^[0-9]{10}$/',
                 'estado'   => 'nullable|string|in:Activo,Inactivo',
                 'rol'      => 'nullable|string|in:Administrador,Residente',
                 'password' => 'nullable|string|min:6'
+            ], [
+                'nombre.required'   => 'El nombre completo es obligatorio.',
+                'nombre.regex'      => 'El nombre solo debe contener letras.',
+                'unidad.required'   => 'La unidad o departamento es obligatorio.',
+                'email.required'    => 'El correo electrónico es obligatorio.',
+                'email.email'       => 'Ingresa un formato de correo válido.',
+                'telefono.required' => 'El teléfono es obligatorio.',
+                'telefono.regex'    => 'El teléfono debe contener exactamente 10 dígitos numéricos.'
             ]);
 
-            if (!isset($validated['estado'])) {
-                $validated['estado'] = 'Activo';
+            $emailLimpio = strtolower(trim($validated['email']));
+
+            if (Residente::where('email', $emailLimpio)->exists()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Este correo electrónico ya se encuentra registrado.'
+                ], 422);
             }
 
-            $emailLimpio = strtolower(trim($validated['email']));
             $rolSeleccionado = $validated['rol'] ?? 'Residente';
             $passwordInicial = $validated['password'] ?? 'Condo1234';
 
             $residente = Residente::create([
-                'nombre'   => $validated['nombre'],
-                'unidad'   => $validated['unidad'],
+                'nombre'   => trim($validated['nombre']),
+                'unidad'   => trim($validated['unidad']),
                 'email'    => $emailLimpio,
-                'telefono' => $validated['telefono'],
-                'estado'   => $validated['estado'],
+                'telefono' => trim($validated['telefono']),
+                'estado'   => $validated['estado'] ?? 'Activo',
                 'rol'      => $rolSeleccionado
             ]);
 
             User::updateOrCreate(
                 ['email' => $emailLimpio],
                 [
-                    'name'     => $validated['nombre'],
+                    'name'     => trim($validated['nombre']),
                     'password' => Hash::make($passwordInicial),
                     'role'     => $rolSeleccionado
                 ]
@@ -82,10 +107,15 @@ class ControladorResidente extends Controller
                 'data' => $residente,
                 'password_inicial' => $passwordInicial
             ], 201);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => collect($e->errors())->flatten()->first()
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al registrar usuario: ' . $e->getMessage()
+                'message' => 'Error al registrar: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -98,17 +128,33 @@ class ControladorResidente extends Controller
             if (!$residente) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Residente no encontrado.'
+                    'message' => 'Registro no encontrado.'
                 ], 404);
             }
 
             $validated = $request->validate([
-                'nombre'   => 'sometimes|required|string|max:255',
-                'unidad'   => 'sometimes|required|string|max:100',
+                'nombre' => [
+                    'sometimes',
+                    'required',
+                    'string',
+                    'min:5',
+                    'max:100',
+                    'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                    function ($attribute, $value, $fail) {
+                        $palabras = array_filter(explode(' ', trim($value)));
+                        if (count($palabras) < 2) {
+                            $fail('Debes ingresar al menos un nombre y un apellido.');
+                        }
+                    },
+                ],
+                'unidad'   => 'sometimes|required|string|min:4|max:50',
                 'email'    => 'sometimes|required|email|max:255',
-                'telefono' => 'sometimes|required|string|max:50',
+                'telefono' => 'sometimes|required|string|regex:/^[0-9]{10}$/',
                 'estado'   => 'sometimes|required|string|in:Activo,Inactivo',
                 'rol'      => 'nullable|string|in:Administrador,Residente'
+            ], [
+                'nombre.regex'   => 'El nombre solo debe contener letras.',
+                'telefono.regex' => 'El teléfono debe tener exactamente 10 dígitos numéricos.'
             ]);
 
             if (isset($validated['email'])) {
@@ -117,7 +163,6 @@ class ControladorResidente extends Controller
 
             $residente->update($validated);
 
-            // Sincronizar o crear en la tabla de usuarios
             User::updateOrCreate(
                 ['email' => $residente->email],
                 [
@@ -128,9 +173,14 @@ class ControladorResidente extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Datos actualizados y sincronizados con éxito.',
+                'message' => 'Datos actualizados con éxito.',
                 'data' => $residente
             ], 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => collect($e->errors())->flatten()->first()
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',

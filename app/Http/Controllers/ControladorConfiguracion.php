@@ -20,6 +20,11 @@ class ControladorConfiguracion extends Controller
                     'administrador'       => 'José Daniel Vázquez',
                     'telefono'            => '3312345678',
                     'cuota_mantenimiento' => 1500,
+                    'capacidad_total'     => 50,
+                    'dia_corte'           => 10,
+                    'banco'               => 'BBVA Bancomer',
+                    'clabe_interbancaria' => '012320001234567890',
+                    'beneficiario'        => 'Administración CondoMaster AC',
                     'moneda'              => 'MXN'
                 ]);
             }
@@ -44,7 +49,12 @@ class ControladorConfiguracion extends Controller
                 'direccion'           => 'required|string|max:255',
                 'administrador'       => 'required|string|max:255',
                 'telefono'            => 'required|string|max:50',
-                'cuota_mantenimiento' => 'required|numeric',
+                'cuota_mantenimiento' => 'required|numeric|min:0',
+                'capacidad_total'     => 'required|integer|min:1|max:1000',
+                'dia_corte'           => 'required|integer|min:1|max:31',
+                'banco'               => 'nullable|string|max:100',
+                'clabe_interbancaria' => 'nullable|string|max:30',
+                'beneficiario'        => 'nullable|string|max:255',
                 'moneda'              => 'required|string|max:10'
             ]);
 

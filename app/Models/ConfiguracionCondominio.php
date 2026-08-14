@@ -16,11 +16,19 @@ class ConfiguracionCondominio extends Model
         'administrador',
         'telefono',
         'cuota_mantenimiento',
+        'capacidad_total',
+        'dia_corte',
+        'banco',
+        'clabe_interbancaria',
+        'beneficiario',
         'moneda'
     ];
 
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'cuota_mantenimiento' => 'float',
+        'capacidad_total'     => 'integer',
+        'dia_corte'           => 'integer',
+        'created_at'          => 'datetime',
+        'updated_at'          => 'datetime',
     ];
 }
